@@ -205,7 +205,7 @@ void* smalloc(size_t size){
 
 
 void* scalloc(size_t num, size_t size){
-    if (size == 0 || num == 0) return NULL;
+    if (size == 0 || num == 0 || num*size > 100000000) return NULL;
 
     void* space = smalloc(num*size);
     if (space == NULL) return NULL;
@@ -449,16 +449,38 @@ size_t _num_free_bytes(){
 }
 
 size_t _num_allocated_blocks(){
-    return total_allocated_blocks;
+
+    //amount of blocks in buddy allocator.
+    size_t amount = total_allocated_blocks;
+
+    MallocMetadata* temp = mapped_memory;
+    
+    //count mmaped memory blocks
+    while (temp != NULL){
+        amount += 1;
+        temp = temp->next;
+    }
+
+    return amount;
 }
 
 size_t _num_allocated_bytes(){
+
+    //amount of bytes in buddy allocator
+    size_t amount = 128*initial_blocks_amount*KB - total_allocated_blocks*sizeof(MallocMetadata);
     
-    return 128*initial_blocks_amount*KB - total_allocated_blocks*sizeof(MallocMetadata);
+    //add free bytes from mmaped blocks.
+    MallocMetadata* temp = mapped_memory;
+    while (temp != NULL){
+        amount += temp->size;
+        temp = temp->next;
+    }
+
+    return amount;
 }
 
 size_t _num_meta_data_bytes(){
-    return total_allocated_blocks*sizeof(MallocMetadata);
+    return _num_allocated_blocks()*sizeof(MallocMetadata);
 }
 
 size_t _size_meta_data(){
